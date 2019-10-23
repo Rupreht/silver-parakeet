@@ -13,7 +13,7 @@ ARGS=""
 if [[ $# -gt 0 ]] ; then ARGS="with arguments '${@}'"; fi
 echo "Starting '${0}' ${ARGS}"
 
-#- dumpdb.sh 0.5
+#- dumpdb.sh 0.91
 ## Usage: dumpdb.sh [-d directory] [-f] [-h] [-v]
 ##
 ##       -d <dir> Set dump directory
@@ -46,6 +46,11 @@ DBDUMP_HOME_FOLDER=/home/my_user    # Change this to set where your db dump cont
 MINIMUM_AGE_IN_MINUTES=540          # 540 mins = nine hours
 EXTENDED_INSERT_MIN_SIZE=200        # in Megabytes before compression
 
+if [ ${DBDUMP_HOME_FOLDER} == "/home/my_user" ]
+then
+  echo "Please set DBDUMP_HOME_FOLDER to a valid value"
+  exit 1
+fi
 
 # Static vars
 HOSTNAME="$(hostname -s)"
