@@ -1,5 +1,6 @@
 # silver-parakeet
 MySQL Database dump script
+```
 #- dumpdb.sh 0.5
 ## Usage: dumpdb.sh [-d directory] [-f] [-h] [-v]
 ##
@@ -23,3 +24,4 @@ MySQL Database dump script
 # http://stackoverflow.com/questions/10867520/mysqldump-with-db-in-a-separate-file/26292371#26292371
 # with some changes to fit our requirements
 #
+```
