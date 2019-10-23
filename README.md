@@ -1,15 +1,15 @@
 # silver-parakeet
 MySQL Database dump script
 ```
-#- dumpdb.sh 0.5
-## Usage: dumpdb.sh [-d directory] [-f] [-h] [-v]
+#- dumpdb.sh 0.6
+## Usage: dumpdb.sh [-h] [-v] [-d directory] [-f] [-c] [-e]
 ##
+##       -h       Show help options.
+##       -v       Print version info.
 ##       -d <dir> Set dump directory
 ##       -f       Force regardless of date
 ##       -c       Compress while dumping (uses less disk at the cost of more CPU/RAM)
 ##       -e       Enable Extended Insert for large tables
-##       -h       Show help options.
-##       -v       Print version info.
 ##
 ## Example:
 ##
@@ -23,5 +23,4 @@ MySQL Database dump script
 # This was ported from:
 # http://stackoverflow.com/questions/10867520/mysqldump-with-db-in-a-separate-file/26292371#26292371
 # with some changes to fit our requirements
-#
 ```
