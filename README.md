@@ -2,7 +2,7 @@
 MySQL Database dump script
 ```
 #- dumpdb.sh 0.91
-## Usage: dumpdb.sh [-d directory] [-f] [-h] [-v]
+## Usage: dumpdb.sh [-d directory] [-f] [-c] [-e] [-h] [-v]
 ##
 ##       -d <dir> Set dump directory
 ##       -f       Force regardless of date

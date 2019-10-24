@@ -14,12 +14,12 @@ if [[ $# -gt 0 ]] ; then ARGS="with arguments '${@}'"; fi
 echo "Starting '${0}' ${ARGS}"
 
 #- dumpdb.sh 0.91
-## Usage: dumpdb.sh [-d directory] [-f] [-h] [-v]
+## Usage: dumpdb.sh [-d directory] [-f] [-c] [-e] [-h] [-v]
 ##
 ##       -d <dir> Set dump directory
 ##       -f       Force regardless of date
 ##       -c       Compress while dumping (uses less disk at the cost of more CPU/RAM)
-##       -e       Enable Extended Insert for large tables
+##       -e       Enable Extended Insert for large tables (over ${EXTENDED_INSERT_MIN_SIZE} MB)
 ##       -h       Show help options.
 ##       -v       Print version info.
 ##
@@ -30,7 +30,8 @@ echo "Starting '${0}' ${ARGS}"
 ##
 
 # This dump script will create hostname.database.table.sql.gz files which are compressed with
-# pigz rsyncable compression. Innodb tables are dumped using --There will be server-side configuration files which will allow setting a 
+# pigz rsyncable compression. Innodb tables are dumped using --single-transaction.
+# There will be server-side configuration files which will allow setting a 
 # specific database or a database.table to be skipped.
 # This was ported from:
 # http://stackoverflow.com/questions/10867520/mysqldump-with-db-in-a-separate-file/26292371#26292371
@@ -42,7 +43,7 @@ echo "Starting '${0}' ${ARGS}"
 #################################
 
 # Set variables
-DBDUMP_HOME_FOLDER=/home/my_user    # Change this to set where your db dump control files (and by default, the dumps as well) will live 
+DBDUMP_HOME_FOLDER=/home/geoff    # Change this to set where your db dump control files (and by default, the dumps as well) will live 
 MINIMUM_AGE_IN_MINUTES=540          # 540 mins = nine hours
 EXTENDED_INSERT_MIN_SIZE=200        # in Megabytes before compression
 
