@@ -51,6 +51,10 @@ EXTENDED_INSERT_MIN_SIZE=200        # in Megabytes before compression
 # Read configuration file       #
 #################################
 
+# the config file needs to set the variable DBDUMP_HOME_FOLDER as indicated above. 
+# an example would be:
+# DBDUMP_HOME_FOLDER="/home/my_backup_home"
+
 source $HOME/.config/dumpdb.sh.config || echo "please create a config file" ; exit 1
 
 # Static vars
@@ -348,7 +352,11 @@ do
   #############################
   # Begin loop through tables #
   #############################
-  for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e 'show tables')
+  
+  # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
+  for BASE_OR_VIEW in 'BASE TABLE' 'VIEW'
+  do 
+  for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'" )
   do
     if [[ ! " ${IGNORED_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] 
     then
@@ -481,6 +489,7 @@ do
       echo "-- Skip - Match found within \"${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt\": ${THIS_TABLE}"
     fi
   done
+done
 done
 
 #####################################
