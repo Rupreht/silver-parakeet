@@ -354,7 +354,7 @@ do
   #############################
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
-  for BASE_OR_VIEW in 'BASE TABLE' 'VIEW'
+  for BASE_OR_VIEW in 'VIEW' # 'BASE TABLE'
   do 
   for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'" )
   do
