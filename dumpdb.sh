@@ -55,7 +55,7 @@ EXTENDED_INSERT_MIN_SIZE=200        # in Megabytes before compression
 # an example would be:
 # DBDUMP_HOME_FOLDER="/home/my_backup_home"
 
-source $HOME/.config/dumpdb.sh.config || echo "please create a config file" && exit 1
+source $HOME/.config/dumpdb.sh.config || { echo "please create a config file" ; exit 1 }
 
 # Static vars
 HOSTNAME="$(hostname -s)"
