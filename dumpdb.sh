@@ -121,13 +121,13 @@ while getopts "hvd:fce" opt; do
   eval "opt_$opt"
 done
 
-if [ -f /home/${USER}/.my.cnf ] # if file exists
+if [ -f ${HOME}/.my.cnf ] # if file exists
 then
-  MYSQL_LOGIN_INFO="/home/${USER}/.my.cnf"
+  MYSQL_LOGIN_INFO="${HOME}/.my.cnf"
   MYSQL_DEFAULTS=""
-elif [ -f /home/${USER}/.mylogin.cnf ] # if file exists
+elif [ -f ${HOME}/.mylogin.cnf ] # if file exists
 then
-  MYSQL_LOGIN_INFO="/home/${USER}/.mylogin.cnf"
+  MYSQL_LOGIN_INFO="${HOME}/.mylogin.cnf"
   MYSQL_DEFAULTS=""
 else
   MYSQL_LOGIN_INFO="/root/.mylogin.cnf"
