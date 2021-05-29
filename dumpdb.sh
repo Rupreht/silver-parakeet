@@ -123,7 +123,7 @@ opt_e() {
   ENABLE_EXTENDED_INSERT="true"
 }
 
-while getopts "hvd:fce" opt; do
+while getopts "debug:hvd:fce" opt; do
   eval "opt_$opt"
 done
 
