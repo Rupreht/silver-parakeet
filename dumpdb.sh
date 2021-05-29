@@ -13,8 +13,8 @@ ARGS=""
 if [[ $# -gt 0 ]] ; then ARGS="with arguments '${@}'"; fi
 echo "Starting '${0}' ${ARGS}"
 
-#- dumpdb.sh 0.92
-## Usage: dumpdb.sh [-d directory] [-f] [-c] [-e] [-h] [-v]
+#- dumpdb.sh 0.92.1
+## Usage: dumpdb.sh [-d directory] [-f] [-c] [-e] [-h] [-v] [-debug]
 ##
 ##       -d <dir> Set dump directory
 ##       -f       Force regardless of date
@@ -22,6 +22,7 @@ echo "Starting '${0}' ${ARGS}"
 ##       -e       Enable Extended Insert for large tables (over ${EXTENDED_INSERT_MIN_SIZE} MB)
 ##       -h       Show help options.
 ##       -v       Print version info.
+##       -debug   Enable debug.
 ##
 ## Example:
 ##
@@ -91,6 +92,10 @@ COMPARE_ROUTINE=""
 
 help=$(grep "^## " "${BASH_SOURCE[0]}" | cut -c 4-)
 version=$(grep "^#- "  "${BASH_SOURCE[0]}" | cut -c 4-)
+
+opt_debug() {
+  DEBUG=1
+}
 
 opt_h() {
   echo "$help"
@@ -432,7 +437,6 @@ do
       else
         INNODB_TABLE_DETECTED=""
       fi
-         
 
       ###################################
       # Call functions, perform dumps   #
