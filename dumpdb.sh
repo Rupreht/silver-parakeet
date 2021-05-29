@@ -46,6 +46,7 @@ echo "Starting '${0}' ${ARGS}"
 DBDUMP_HOME_FOLDER=""               # This will be set by the config file, and indicates where your db dump control files (and by default, the dumps as well) will live 
 MINIMUM_AGE_IN_MINUTES=540          # 540 mins = nine hours
 EXTENDED_INSERT_MIN_SIZE=200        # in Megabytes before compression
+DEBUG=
 
 #################################
 # Read configuration file       #
@@ -268,6 +269,7 @@ fi
 echo "-- Dumping all DB ..."
 for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-column-names); 
 do
+  [ -z "$DEBUG" ] || echo "info: THIS_DATABASE=$THIS_DATABASE"
   # Skip schema & other DBs
   for EXCLUDE_THIS_DATABASE in information_schema mysql phpmyadmin performance_schema sys
   do
@@ -312,7 +314,7 @@ do
   else                                  # if empty
     IGNORED_DATABASE_TABLES=''
   fi
-
+  [ -z "$DEBUG" ] || echo "info: IGNORED_DATABASE_TABLES=$IGNORED_DATABASE_TABLES"
   # Build big tables array
   if [ -f "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" ] # if file exists
   then
@@ -328,7 +330,7 @@ do
   else                                  # if empty
     BIG_DATABASE_TABLES=''
   fi
-
+  [ -z "$DEBUG" ] || echo "info: BIG_DATABASE_TABLES=$BIG_DATABASE_TABLES"
   ########################
   # Clean up old dumps   #
   ########################
@@ -354,10 +356,12 @@ do
   #############################
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
-  for BASE_OR_VIEW in 'VIEW' # 'BASE TABLE'
-  do 
-  for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'" )
+  for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'
   do
+    [ -z "$DEBUG" ] || echo "mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e \"SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'\""
+  for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'"|awk '{print $1}')
+  do
+    [ -z "$DEBUG" ] || echo "info: THIS_DATABASE.THIS_TABLE=${THIS_DATABASE}.${THIS_TABLE}"
     if [[ ! " ${IGNORED_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] 
     then
       ############################################
