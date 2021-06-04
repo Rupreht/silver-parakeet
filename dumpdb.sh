@@ -169,7 +169,7 @@ DUMP_DATA(){
   else
     #try mysqlpump ${MYSQL_DEFAULTS} ${MYSQL_PUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
     #try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} --skip-extended-insert ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-    try mysqldump ${MYSQL_DEFAULTS}  -—triggers --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --routines --no-create-info >> "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
     try cat /tmp/sqlend.sql >> "${TEMP_SAVEd_TABLE}.tmp"
   fi
 }
