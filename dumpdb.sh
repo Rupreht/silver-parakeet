@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # From https://stackoverflow.com/a/25515370/788155
 yell() { echo "$0: $*" >&2; }
 die() { yell "$*"; exit 111; }
-try() { echo "-- $@" "$@" || die "cannot $*"; }
+try() { echo "-- $@" && "$@" || die "cannot $*"; }
 
 # print self and arguments, if any
 ARGS=""
