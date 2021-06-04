@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # From https://stackoverflow.com/a/25515370/788155
 yell() { echo "$0: $*" >&2; }
 die() { yell "$*"; exit 111; }
-try() { "$@" || die "cannot $*"; }
+try() { echo "-- $@" "$@" || die "cannot $*"; }
 
 # print self and arguments, if any
 ARGS=""
@@ -156,20 +156,15 @@ DUMP_STRUCTURE(){
   else
     try cat /tmp/sqlhead.sql > "${TEMP_SAVEd_TABLE}.tmp"
     try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data >> "${TEMP_SAVEd_TABLE}.tmp"
-
   fi
-  #try mysqlpump ${MYSQL_DEFAULTS} ${MYSQL_PUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --skip-dump-rows | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-  #try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} --skip-extended-insert ${THIS_DATABASE} ${THIS_TABLE} --no-data | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
 }
 DUMP_DATA(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
   then
-    try mysqldump -e ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
     try cat /tmp/sqlend.sql | ${COMPRESS_CMD}>> "${TEMP_SAVEd_TABLE}.tmp.gz"
   else
-    #try mysqlpump ${MYSQL_DEFAULTS} ${MYSQL_PUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-    #try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} --skip-extended-insert ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-    try mysqldump -e ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
     try cat /tmp/sqlend.sql >> "${TEMP_SAVEd_TABLE}.tmp"
   fi
 }
@@ -262,7 +257,7 @@ mysql ${MYSQL_DEFAULTS} -e 'show databases' > /dev/null || \
   }
 
 # Set SQLend string:
-echo "SET autocommit=1;SET unique_checks=1;SET foreign_key_checks=1;" > /tmp/sqlend.sql
+echo "SET autocommit=1; SET unique_checks=1; SET foreign_key_checks=1;" > /tmp/sqlend.sql
 if [ ! -f /tmp/sqlend.sql ]; then
   printf "Error: The user launching this script, ${USER}, is unable to create /tmp/sqlend.sql. Does it already exist?"
   PRECHECK_DUMP="ERROR"
@@ -349,7 +344,7 @@ do
   done
 
   # Set SQLhead string while in loop
-  echo "USE ${THIS_DATABASE};SET autocommit=0;SET unique_checks=0;SET foreign_key_checks=0;" > /tmp/sqlhead.sql
+  echo "USE ${THIS_DATABASE}; SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;" > /tmp/sqlhead.sql
   if [ ! -f /tmp/sqlhead.sql ]; then
     printf "Error: The user launching this script, ${USER}, is unable to create /tmp/sqlhead.sql. Does it already exist?"
     exit 1
