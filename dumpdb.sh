@@ -346,7 +346,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
   #############################
   # Begin loop through tables #
   #############################
-
+  TEMP_SAVEd_TABLE=${THIS_DATABASE}
   DUMP_STRUCTURE
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
