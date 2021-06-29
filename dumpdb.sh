@@ -151,9 +151,9 @@ if [[ ! -z ${MYSQL_DEFAULTS} ]] ; then echo "MYSQL_DEFAULTS = ${MYSQL_DEFAULTS}"
 DUMP_STRUCTURE_HEAD(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
   then
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines | ${COMPRESS_CMD} > "${THIS_DATABASE}.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} --no-data --triggers --routines | ${COMPRESS_CMD} > "${THIS_DATABASE}.tmp.gz"
   else
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines > "${THIS_DATABASE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} --no-data --triggers --routines > "${THIS_DATABASE}.tmp"
   fi
 }
 DUMP_STRUCTURE(){
