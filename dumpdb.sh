@@ -148,56 +148,47 @@ if [[ ! -z ${MYSQL_DEFAULTS} ]] ; then echo "MYSQL_DEFAULTS = ${MYSQL_DEFAULTS}"
 ################
 
 # Pipe and concat the head/end with the stoutput of mysqlump ( '-' cat argument)
-DUMP_STRUCTURE_HEAD(){
-  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
-  then
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} --no-data --triggers --routines | ${COMPRESS_CMD} > "${THIS_DATABASE}.tmp.gz"
-  else
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} --no-data --triggers --routines > "${THIS_DATABASE}.tmp"
-  fi
-}
 DUMP_STRUCTURE(){
-  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
-  then
-    try cat /tmp/sqlhead.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz" 
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+  # 1 - ${THIS_DATABASE}
+  # 2 - ${THIS_TABLE}
+  # 3 - ${TEMP_SAVEd_TABLE}
+  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines | ${COMPRESS_CMD} >> "$3.tmp.gz"
   else
-    try cat /tmp/sqlhead.sql > "${TEMP_SAVEd_TABLE}.tmp"
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines >> "$3.tmp"
   fi
 }
 DUMP_DATA(){
-  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
-  then
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
+    try cat /tmp/sqlhead.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz" 
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
     try cat /tmp/sqlend.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
   else
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
+    try cat /tmp/sqlhead.sql > "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
     try cat /tmp/sqlend.sql >> "${TEMP_SAVEd_TABLE}.tmp"
   fi
 }
 COMPRESS_DUMP(){
-if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
-then
-  echo "--skipping compress since option '-c' was provided"
-else
-  try ${COMPRESS_CMD} "${TEMP_SAVEd_TABLE}.tmp"
-fi
+  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
+    echo "--skipping compress since option '-c' was provided"
+  else
+    try ${COMPRESS_CMD} "$1.tmp"
+  fi
 }
 COMPARE_FILES(){
-  if [[ -f "${SAVED_TABLE}.sql.gz" ]]
-  then
-    if ( zcmp "${TEMP_SAVEd_TABLE}.tmp.gz" "${SAVED_TABLE}.sql.gz" )
+  if [[ -f "$1.sql.gz" ]]; then
+    if ( zcmp "$2.tmp.gz" "$1.sql.gz" )
     then
       echo "-- Identical to previous table dump. Removing temporary file."
-      try rm -f "${TEMP_SAVEd_TABLE}.tmp.gz"
+      try rm -f "$2.tmp.gz"
     else
       echo "-- Differences found. Overwriting previous table dump."
-      try mv -f "${TEMP_SAVEd_TABLE}.tmp.gz" "${SAVED_TABLE}.sql.gz"
+      try mv -f "$2.tmp.gz" "$1.sql.gz"
     fi
   else
     echo "-- No previous file to compare. Removing tmp extension."
-    try mv -f "${TEMP_SAVEd_TABLE}.tmp.gz" "${SAVED_TABLE}.sql.gz"
+    try mv -f "$2.tmp.gz" "$1.sql.gz"
   fi
 }
 ################
@@ -205,21 +196,19 @@ COMPARE_FILES(){
 ################
 
 # Build skip databases array
-if [ -f "${MYSQL_DUMP_SKIP_DATABASES}" ] # if file exists
-then
+if [ -f "${MYSQL_DUMP_SKIP_DATABASES}" ]; then
   # Read non-whitespace and non-commented lines into array
   IFS=$'\r\n' GLOBIGNORE='*' command eval 'EXCLUDED_DATABASES=($(cat ${MYSQL_DUMP_SKIP_DATABASES} | egrep -v "^[[:space:]]" | awk "!/^ *#/ && NF" ))'
-  if (( ${#EXCLUDED_DATABASES[@]} ))    # if not empty
-  then
+  if (( ${#EXCLUDED_DATABASES[@]} )); then
     echo "-- EXCLUDED_DATABASES[@]: ${EXCLUDED_DATABASES[@]}"
-  else                                  # if empty
+  else
     IGNORED_DATABASES=''
     EXCLUDED_DATABASES=''
   fi
 else
   echo "-- File not found: \"${MYSQL_DUMP_SKIP_DATABASES}\""
-    IGNORED_DATABASES=''
-    EXCLUDED_DATABASES=''
+  IGNORED_DATABASES=''
+  EXCLUDED_DATABASES=''
 fi
 
 echo "-- STARTING DATABASE DUMP --"
@@ -228,8 +217,7 @@ echo "-- STARTING DATABASE DUMP --"
 if [ ! -d "${MYSQL_DUMP_FOLDER}" ]; then
   printf "\-- Dump folder not found. Attempting to create %s\n" "${MYSQL_DUMP_FOLDER}"
   try mkdir -p "${MYSQL_DUMP_FOLDER}"
-  if [ $? -ne 0 ]
-  then
+  if [ $? -ne 0 ]; then
     printf "Error: The user launching this script, ${USER}, is unable to create \"${MYSQL_DUMP_FOLDER}\""
     PRECHECK_DUMP="ERROR"
     exit 1
@@ -242,8 +230,7 @@ fi
 if [ -d "/mnt/resource" ]; then
   printf "\-- /mnt/resource folder was found. Attempting to create %s\n" "${MYSQL_TMP_FOLDER}"
     mkdir -p "${MYSQL_TMP_FOLDER}"
-    if [ $? -ne 0 ]
-    then
+    if [ $? -ne 0 ]; then
       printf "Error: The user launching this script, ${USER}, is unable to create \"${MYSQL_TMP_FOLDER}\""
       MYSQL_TMP_FOLDER="${MYSQL_DUMP_FOLDER}"
     else
@@ -355,7 +342,8 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
   # Begin loop through tables #
   #############################
 
-  DUMP_STRUCTURE_HEAD
+  DUMP_STRUCTURE "${THIS_DATABASE}" "" "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
+  COMPARE_FILES "${THIS_DATABASE}" "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
   for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'; do
@@ -400,17 +388,6 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         TEMP_SAVEd_TABLE=${MYSQL_TMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
         SAVED_TABLE=${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
 
-        ############################
-        # Set big table parameters #
-        ############################
-
-        if [[ " ${BIG_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] && ${ENABLE_EXTENDED_INSERT} == true ; then
-          echo "-- BIG BIG Table. Using Extended Insert for this dump"
-          BIG_TABLE_SWITCH=""
-        else
-          BIG_TABLE_SWITCH=" --skip-extended-insert "
-        fi
-
         ##########################
         # Identify Innodb tables #
         ##########################
@@ -431,7 +408,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         # Call functions, perform dumps   #
         ###################################
         echo "-- `date +%T` -- BEGIN dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-        DUMP_STRUCTURE
+        DUMP_STRUCTURE "${THIS_DATABASE}" "${THIS_TABLE}" "${TEMP_SAVEd_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for dumping structure"
           STRUCTURE_DUMP="ERROR"
@@ -460,7 +437,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         fi
 
         echo "-- `date +%T` -- BEGIN compress: \"${THIS_DATABASE}.${THIS_TABLE}.sql\""
-        COMPRESS_DUMP
+        COMPRESS_DUMP "${TEMP_SAVEd_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for compressing dump"
           COMPRESS_ROUTINE="ERROR"
@@ -470,7 +447,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         fi
 
         echo "-- `date +%T` -- Begin compare files from previous dump"
-        COMPARE_FILES
+        COMPARE_FILES "${SAVED_TABLE}" "${TEMP_SAVEd_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for comparing files"
           COMPARE_ROUTINE="ERROR"
