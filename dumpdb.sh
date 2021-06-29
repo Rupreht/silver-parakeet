@@ -178,17 +178,17 @@ COMPRESS_DUMP(){
 }
 COMPARE_FILES(){
   if [[ -f "$1.sql.gz" ]]; then
-    if ( zcmp "$2.tmp.gz" "$1.sql.gz" )
+    if ( zcmp "$1.tmp.gz" "$1.sql.gz" )
     then
       echo "-- Identical to previous table dump. Removing temporary file."
-      try rm -f "$2.tmp.gz"
+      try rm -f "$1.tmp.gz"
     else
       echo "-- Differences found. Overwriting previous table dump."
-      try mv -f "$2.tmp.gz" "$1.sql.gz"
+      try mv -f "$1.tmp.gz" "$1.sql.gz"
     fi
   else
     echo "-- No previous file to compare. Removing tmp extension."
-    try mv -f "$2.tmp.gz" "$1.sql.gz"
+    try mv -f "$1.tmp.gz" "$1.sql.gz"
   fi
 }
 ################
@@ -343,7 +343,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
   #############################
 
   DUMP_STRUCTURE "${THIS_DATABASE}" "" "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
-  COMPARE_FILES "${THIS_DATABASE}" "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
+  COMPARE_FILES "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
   for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'; do
@@ -447,7 +447,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         fi
 
         echo "-- `date +%T` -- Begin compare files from previous dump"
-        COMPARE_FILES "${SAVED_TABLE}" "${TEMP_SAVEd_TABLE}"
+        COMPARE_FILES "${SAVED_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for comparing files"
           COMPARE_ROUTINE="ERROR"
