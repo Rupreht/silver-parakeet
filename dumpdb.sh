@@ -152,17 +152,17 @@ DUMP_STRUCTURE(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
   then
     try cat /tmp/sqlhead.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz" 
-    try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
   else
     try cat /tmp/sqlhead.sql > "${TEMP_SAVEd_TABLE}.tmp"
-    try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data >> "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
   fi
 }
 DUMP_DATA(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
   then
-    try mysqldump ${MYSQL_DEFAULTS} ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-    try cat /tmp/sqlend.sql | ${COMPRESS_CMD}>> "${TEMP_SAVEd_TABLE}.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+    try cat /tmp/sqlend.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
   else
     try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${BIG_TABLE_SWITCH} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
     try cat /tmp/sqlend.sql >> "${TEMP_SAVEd_TABLE}.tmp"
@@ -267,12 +267,10 @@ fi
 # Begin loop through databases #
 ################################
 echo "-- Dumping all DB ..."
-for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-column-names); 
-do
+for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-column-names); do
   [ -z "$DEBUG" ] || echo "info: THIS_DATABASE=$THIS_DATABASE"
   # Skip schema & other DBs
-  for EXCLUDE_THIS_DATABASE in information_schema mysql phpmyadmin performance_schema sys
-  do
+  for EXCLUDE_THIS_DATABASE in information_schema mysql phpmyadmin performance_schema sys; do
     if [ "${THIS_DATABASE}" = "${EXCLUDE_THIS_DATABASE}" ]
     then
       echo "-- Skip - Matches hard-coded exclude list: \"${THIS_DATABASE}\""
@@ -280,8 +278,7 @@ do
     fi
   done
   # Skip specifically excluded DBs
-  for EXCLUDE_THAT_DATABASE in "${EXCLUDED_DATABASES[@]}"
-  do
+  for EXCLUDE_THAT_DATABASE in "${EXCLUDED_DATABASES[@]}"; do
     if [ "${THIS_DATABASE}" = "${EXCLUDE_THAT_DATABASE}" ]
     then
       echo "-- Skip - Match found within \"${MYSQL_DUMP_SKIP_DATABASES}\": \"${THIS_DATABASE}\""
@@ -290,24 +287,21 @@ do
   done
 
   # Verify exists or create subfolder for database
-  if [ ! -d "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}" ]
-  then
+  if [ ! -d "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}" ]; then
     try mkdir -p "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}"
   fi
-  if [ "${MYSQL_DUMP_FOLDER}" != "${MYSQL_TMP_FOLDER}" ]
-  then
+  if [ "${MYSQL_DUMP_FOLDER}" != "${MYSQL_TMP_FOLDER}" ]; then
     try mkdir -p "${MYSQL_TMP_FOLDER}/${THIS_DATABASE}"
   fi
 
   # Build skip tables array
-  if [ -f "${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt" ] # if file exists
-  then
+  if [ -f "${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt" ]; then
+    # if file exists
     # Read non-whitespace and non-commented lines into array
-    IFS=$'\r\n' GLOBIGNORE='*' command eval  'EXCLUDED_TABLES=($(cat "${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt" | egrep -v "^[[:space:]]" | awk "!/^ *#/ && NF" ))'
+    IFS=$'\r\n' GLOBIGNORE='*' command eval 'EXCLUDED_TABLES=($(cat "${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt" | egrep -v "^[[:space:]]" | awk "!/^ *#/ && NF" ))'
     IGNORED_DATABASE_TABLES=''
     echo "-- EXCLUDED_TABLES array = \"${EXCLUDED_TABLES[@]}\""
-    for IGNORE_THIS_TABLE in "${EXCLUDED_TABLES[@]}"
-    do :
+    for IGNORE_THIS_TABLE in "${EXCLUDED_TABLES[@]}"; do :
       IGNORED_DATABASE_TABLES+="${THIS_DATABASE}.${IGNORE_THIS_TABLE} "
     done
     echo "-- IGNORED_DATABASE_TABLES[@] = \"${IGNORED_DATABASE_TABLES}\""
@@ -316,14 +310,13 @@ do
   fi
   [ -z "$DEBUG" ] || echo "info: IGNORED_DATABASE_TABLES=$IGNORED_DATABASE_TABLES"
   # Build big tables array
-  if [ -f "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" ] # if file exists
-  then
+  if [ -f "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" ]; then
+    # if file exists
     # Read non-whitespace and non-commented lines into array
-    IFS=$'\r\n' GLOBIGNORE='*' command eval  'BIG_TABLES=($(cat "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" | egrep -v "^[[:space:]]" | awk "!/^ *#/ && NF" ))'
+    IFS=$'\r\n' GLOBIGNORE='*' command eval 'BIG_TABLES=($(cat "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" | egrep -v "^[[:space:]]" | awk "!/^ *#/ && NF" ))'
     BIG_DATABASE_TABLES=''
     echo "-- BIG_TABLES array = \"${BIG_TABLES[@]}\""
-    for THIS_BIG_TABLE in "${BIG_TABLES[@]}"
-    do :
+    for THIS_BIG_TABLE in "${BIG_TABLES[@]}"; do :
       BIG_DATABASE_TABLES+="${THIS_DATABASE}.${THIS_BIG_TABLE} "
     done
     echo "-- BIG_DATABASE_TABLES[@] = \"${BIG_DATABASE_TABLES}\""
@@ -336,8 +329,7 @@ do
   ########################
   # Remove old full database dumps
   for extension in "sql.gz" "sql"; do
-    if [ -f "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}.${extension}" ]
-    then
+    if [ -f "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}.${extension}" ]; then
       rm -f "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}.${extension}"
       echo "-- deleted \"${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}.${extension}\""
     fi
@@ -354,145 +346,135 @@ do
   #############################
   # Begin loop through tables #
   #############################
+
+  DUMP_STRUCTURE
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
-  for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'
-  do
+  for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'; do
     [ -z "$DEBUG" ] || echo "mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e \"SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'\""
-  for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'"|awk '{print $1}')
-  do
-    [ -z "$DEBUG" ] || echo "info: THIS_DATABASE.THIS_TABLE=${THIS_DATABASE}.${THIS_TABLE}"
-    if [[ ! " ${IGNORED_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] 
-    then
-      ############################################
-      # Skip if recent dump exists unless forced #
-      ############################################
-      CURRENT_TIME=$(date +%s)
-      if [ -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz" ]
-      then
-        echo "-- database.table: ${THIS_DATABASE}.${THIS_TABLE}"
-        echo "-- about to stat ${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz"
-        #ls -lht "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/"
-        ls -l "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/" | grep "${THIS_TABLE}.sql"
-        FILE_TIME=$(stat --format='%Y' "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz")
-      else
-        FILE_TIME=0
-      fi
-      MINIMUM_AGE_IN_SECONDS=$( expr ${MINIMUM_AGE_IN_MINUTES} \* 60 )
-      MATCH_TIME=$( expr ${CURRENT_TIME} - ${MINIMUM_AGE_IN_SECONDS} )
-      #if [ find ${MYSQL_DUMP_FOLDER}/${THIS_DATABASE} -name ${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz -mmin -${MINIMUM_AGE_IN_MINUTES} |& /dev/null ] && [ "${FORCE_IGNORE_TIME}" = "false" ]
-      if [[ ${FILE_TIME} -gt ${MATCH_TIME} ]] && [[ "${FORCE_IGNORE_TIME}" = "false" ]]
-      then
-        echo "-- Skip - Last dump of \"${THIS_DATABASE}.${THIS_TABLE}\" is newer than ${MINIMUM_AGE_IN_MINUTES} minutes."
-        continue
-      fi
-
-      #############################################
-      # Delete previous and partial table dumps   #
-      ############################################# 
-      for extension in "sql" "sql.tmp.gz" "sql.tmp"; do
-        if [ -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}" ]
-        then
-          rm -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}"
-          echo "-- deleted \"${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}\""
+    for THIS_TABLE in $(mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e "SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'"|awk '{print $1}'); do
+      [ -z "$DEBUG" ] || echo "info: THIS_DATABASE.THIS_TABLE=${THIS_DATABASE}.${THIS_TABLE}"
+      if [[ ! " ${IGNORED_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]]; then
+        ############################################
+        # Skip if recent dump exists unless forced #
+        ############################################
+        CURRENT_TIME=$(date +%s)
+        if [ -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz" ]; then
+          echo "-- database.table: ${THIS_DATABASE}.${THIS_TABLE}"
+          echo "-- about to stat ${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz"
+          #ls -lht "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/"
+          ls -l "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/" | grep "${THIS_TABLE}.sql"
+          FILE_TIME=$(stat --format='%Y' "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz")
+        else
+          FILE_TIME=0
         fi
-      done
+        MINIMUM_AGE_IN_SECONDS=$( expr ${MINIMUM_AGE_IN_MINUTES} \* 60 )
+        MATCH_TIME=$( expr ${CURRENT_TIME} - ${MINIMUM_AGE_IN_SECONDS} )
+        #if [ find ${MYSQL_DUMP_FOLDER}/${THIS_DATABASE} -name ${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.sql.gz -mmin -${MINIMUM_AGE_IN_MINUTES} |& /dev/null ] && [ "${FORCE_IGNORE_TIME}" = "false" ]
+        if [[ ${FILE_TIME} -gt ${MATCH_TIME} ]] && [[ "${FORCE_IGNORE_TIME}" = "false" ]]; then
+          echo "-- Skip - Last dump of \"${THIS_DATABASE}.${THIS_TABLE}\" is newer than ${MINIMUM_AGE_IN_MINUTES} minutes."
+          continue
+        fi
 
-      ##############################################
-      # Set temp and existing table dump filenames #
-      ##############################################
-      TEMP_SAVEd_TABLE=${MYSQL_TMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
-      SAVED_TABLE=${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
+        #############################################
+        # Delete previous and partial table dumps   #
+        ############################################# 
+        for extension in "sql" "sql.tmp.gz" "sql.tmp"; do
+          if [ -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}" ]; then
+            rm -f "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}"
+            echo "-- deleted \"${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}.${extension}\""
+          fi
+        done
 
-      ############################
-      # Set big table parameters #
-      ############################
+        ##############################################
+        # Set temp and existing table dump filenames #
+        ##############################################
+        TEMP_SAVEd_TABLE=${MYSQL_TMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
+        SAVED_TABLE=${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}.${THIS_TABLE}
 
-      if [[ " ${BIG_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] && ${ENABLE_EXTENDED_INSERT} == true 
-      then
-        echo "-- BIG BIG Table. Using Extended Insert for this dump"
-        BIG_TABLE_SWITCH=""
-      else
-        BIG_TABLE_SWITCH=" --skip-extended-insert "
-      fi
+        ############################
+        # Set big table parameters #
+        ############################
 
-      ##########################
-      # Identify Innodb tables #
-      ##########################
-      TABLE_TYPE="$(mysql ${MYSQL_DEFAULTS} -NBA -e "SELECT ENGINE
-      FROM INFORMATION_SCHEMA.TABLES 
-      WHERE TABLE_NAME='${THIS_TABLE}'
-      AND   TABLE_SCHEMA='${THIS_DATABASE}';")"
-      #echo "--Table type: $TABLE_TYPE"
+        if [[ " ${BIG_DATABASE_TABLES[@]} " =~ " ${THIS_DATABASE}.${THIS_TABLE} " ]] && ${ENABLE_EXTENDED_INSERT} == true ; then
+          echo "-- BIG BIG Table. Using Extended Insert for this dump"
+          BIG_TABLE_SWITCH=""
+        else
+          BIG_TABLE_SWITCH=" --skip-extended-insert "
+        fi
 
-      if [[ $TABLE_TYPE == InnoDB ]]
-      then
-        echo "-- Innodb table detected"
-        INNODB_TABLE_DETECTED=" --single-transaction"
-      else
-        INNODB_TABLE_DETECTED=""
-      fi
+        ##########################
+        # Identify Innodb tables #
+        ##########################
+        TABLE_TYPE="$(mysql ${MYSQL_DEFAULTS} -NBA -e "SELECT ENGINE
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_NAME='${THIS_TABLE}'
+        AND   TABLE_SCHEMA='${THIS_DATABASE}';")"
+        #echo "--Table type: $TABLE_TYPE"
 
-      ###################################
-      # Call functions, perform dumps   #
-      ###################################
-      echo "-- `date +%T` -- BEGIN dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-      DUMP_STRUCTURE
-      if [ $? -ne 0 ]
-      then
-        echo "-- Error returned from function for dumping structure"
-        STRUCTURE_DUMP="ERROR"
-      exit 1
-      else
-        echo "-- END dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-      fi
+        if [[ $TABLE_TYPE == InnoDB ]]; then
+          echo "-- Innodb table detected"
+          INNODB_TABLE_DETECTED=" --single-transaction"
+        else
+          INNODB_TABLE_DETECTED=""
+        fi
 
-      echo "-- `date +%T` -- BEGIN dumping data for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-      DUMP_DATA
-      if [ $? -ne 0 ]
-      then
-        echo "-- Error returned from function for dumping data"
-        DATA_DUMP="ERROR"
+        ###################################
+        # Call functions, perform dumps   #
+        ###################################
+        echo "-- `date +%T` -- BEGIN dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
+        DUMP_STRUCTURE
+        if [ $? -ne 0 ]; then
+          echo "-- Error returned from function for dumping structure"
+          STRUCTURE_DUMP="ERROR"
         exit 1
-      else
-        echo "-- END dumping data for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-      fi
+        else
+          echo "-- END dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
+        fi
 
-      ##############################################
-      # Check for huge tables; append to txt file  #
-      ##############################################
-      if [[ $(find "${TEMP_SAVEd_TABLE}.tmp" -type f -size +${EXTENDED_INSERT_MIN_SIZE}M 2>/dev/null) ]] 
-      then # we have a BIG_BIG_TABLE. Search for or append to MYSQL_DUMP_BIG_TABLES.database.txt file
-        touch "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt"
-        grep -qxF "${THIS_TABLE}" "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" || echo "${THIS_TABLE}" >> "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt"
-      fi
+        echo "-- `date +%T` -- BEGIN dumping data for: \"${THIS_DATABASE}.${THIS_TABLE}\""
+        DUMP_DATA
+        if [ $? -ne 0 ]; then
+          echo "-- Error returned from function for dumping data"
+          DATA_DUMP="ERROR"
+          exit 1
+        else
+          echo "-- END dumping data for: \"${THIS_DATABASE}.${THIS_TABLE}\""
+        fi
 
-      echo "-- `date +%T` -- BEGIN compress: \"${THIS_DATABASE}.${THIS_TABLE}.sql\""
-      COMPRESS_DUMP
-      if [ $? -ne 0 ]
-      then
-        echo "-- Error returned from function for compressing dump"
-        COMPRESS_ROUTINE="ERROR"
-        exit 1
-      else
-        echo "-- END compress: \"${THIS_DATABASE}.${THIS_TABLE}.sql\""
-      fi
+        ##############################################
+        # Check for huge tables; append to txt file  #
+        ##############################################
+        if [[ $(find "${TEMP_SAVEd_TABLE}.tmp" -type f -size +${EXTENDED_INSERT_MIN_SIZE}M 2>/dev/null) ]]; then
+          # we have a BIG_BIG_TABLE. Search for or append to MYSQL_DUMP_BIG_TABLES.database.txt file
+          touch "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt"
+          grep -qxF "${THIS_TABLE}" "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt" || echo "${THIS_TABLE}" >> "${MYSQL_DUMP_BIG_TABLES}.${THIS_DATABASE}.txt"
+        fi
 
-      echo "-- `date +%T` -- Begin compare files from previous dump"
-      COMPARE_FILES
-      if [ $? -ne 0 ]
-      then
-        echo "-- Error returned from function for comparing files"
-        COMPARE_ROUTINE="ERROR"
-        exit 1
+        echo "-- `date +%T` -- BEGIN compress: \"${THIS_DATABASE}.${THIS_TABLE}.sql\""
+        COMPRESS_DUMP
+        if [ $? -ne 0 ]; then
+          echo "-- Error returned from function for compressing dump"
+          COMPRESS_ROUTINE="ERROR"
+          exit 1
+        else
+          echo "-- END compress: \"${THIS_DATABASE}.${THIS_TABLE}.sql\""
+        fi
+
+        echo "-- `date +%T` -- Begin compare files from previous dump"
+        COMPARE_FILES
+        if [ $? -ne 0 ]; then
+          echo "-- Error returned from function for comparing files"
+          COMPARE_ROUTINE="ERROR"
+          exit 1
+        else
+          echo "-- `date +%T` -- END compare: \"${THIS_DATABASE}.${THIS_TABLE}.sql.gz\""
+        fi
       else
-        echo "-- `date +%T` -- END compare: \"${THIS_DATABASE}.${THIS_TABLE}.sql.gz\""
+        echo "-- Skip - Match found within \"${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt\": ${THIS_TABLE}"
       fi
-    else
-      echo "-- Skip - Match found within \"${MYSQL_DUMP_SKIP_TABLES}.${THIS_DATABASE}.txt\": ${THIS_TABLE}"
-    fi
+    done
   done
-done
 done
 
 #####################################
