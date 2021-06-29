@@ -148,6 +148,14 @@ if [[ ! -z ${MYSQL_DEFAULTS} ]] ; then echo "MYSQL_DEFAULTS = ${MYSQL_DEFAULTS}"
 ################
 
 # Pipe and concat the head/end with the stoutput of mysqlump ( '-' cat argument)
+DUMP_STRUCTURE_HEAD(){
+  if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
+  then
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines | ${COMPRESS_CMD} > "${THIS_DATABASE}.tmp.gz"
+  else
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${THIS_DATABASE} ${THIS_TABLE} --no-data --triggers --routines > "${THIS_DATABASE}.tmp"
+  fi
+}
 DUMP_STRUCTURE(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]
   then
@@ -346,8 +354,8 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
   #############################
   # Begin loop through tables #
   #############################
-  TEMP_SAVEd_TABLE=${THIS_DATABASE}
-  DUMP_STRUCTURE
+
+  DUMP_STRUCTURE_HEAD
   
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
   for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'; do
