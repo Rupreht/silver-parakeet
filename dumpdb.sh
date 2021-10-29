@@ -65,11 +65,10 @@ CURRENT_TIME=""
 FILE_TIME=""
 MINIMUM_AGE_IN_SECONDS=""
 MATCH_TIME=""
-MYSQL_DUMP_SWITCHES=" --skip-dump-date --max-allowed-packet=512M "
-MYSQL_PUMP_SWITCHES=" --max-allowed-packet=512M "
+MYSQL_DUMP_SWITCHES="--max-allowed-packet=512M"
 INNODB_TABLE_DETECTED=""
 MYSQL_DUMP_FOLDER="${DBDUMP_HOME_FOLDER}/mysql"
-MYSQL_TMP_FOLDER="/mnt/resource/mysql_tmp"
+MYSQL_TMP_FOLDER="/var/lib/tmp/mysql_tmp"
 MYSQL_DUMP_SKIP_DATABASES="${DBDUMP_HOME_FOLDER}/dumpdb_excluded_databases.txt"
 MYSQL_DUMP_SKIP_TABLES="${DBDUMP_HOME_FOLDER}/dumpdb_excluded_tables"   # .databasename.txt needs to be appended to this
 MYSQL_DUMP_BIG_TABLES="${DBDUMP_HOME_FOLDER}/dumpdb_big_tables"         # .databasename.txt needs to be appended to this
@@ -153,22 +152,20 @@ DUMP_STRUCTURE(){
   # 2 - ${THIS_TABLE}
   # 3 - ${TEMP_SAVEd_TABLE}
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines | ${COMPRESS_CMD} >> "$3.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} --events --skip-dump-date ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines | ${COMPRESS_CMD} >> "$3.tmp.gz"
   else
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines >> "$3.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events --skip-dump-date ${MYSQL_DUMP_SWITCHES} $1 $2 --no-data --triggers --routines >> "$3.tmp"
   fi
 }
+
 DUMP_DATA(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
-    try cat /tmp/sqlhead.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz" 
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
-    try cat /tmp/sqlend.sql | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --triggers --routines | ${COMPRESS_CMD} >> "${TEMP_SAVEd_TABLE}.tmp.gz"
   else
-    try cat /tmp/sqlhead.sql > "${TEMP_SAVEd_TABLE}.tmp"
-    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --no-create-info --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
-    try cat /tmp/sqlend.sql >> "${TEMP_SAVEd_TABLE}.tmp"
+    try mysqldump ${MYSQL_DEFAULTS} --events ${MYSQL_DUMP_SWITCHES} ${INNODB_TABLE_DETECTED} ${THIS_DATABASE} ${THIS_TABLE} --triggers --routines >> "${TEMP_SAVEd_TABLE}.tmp"
   fi
 }
+
 COMPRESS_DUMP(){
   if [[ ${COMPRESS_WHILE_DUMPING} == true ]]; then
     echo "--skipping compress since option '-c' was provided"
@@ -176,23 +173,26 @@ COMPRESS_DUMP(){
     try ${COMPRESS_CMD} "$1.tmp"
   fi
 }
+
 COMPARE_FILES(){
-  if [[ -f "$1.sql.gz" ]]; then
-    if ( zcmp "$1.tmp.gz" "$1.sql.gz" )
+  TO=${2-"$1"}
+  if [[ -f "$TO.sql.gz" ]]; then
+    if ( zcmp "$1.tmp.gz" "$TO.sql.gz" )
     then
       echo "-- Identical to previous table dump. Removing temporary file."
       try rm -f "$1.tmp.gz"
     else
       echo "-- Differences found. Overwriting previous table dump."
-      try mv -f "$1.tmp.gz" "$1.sql.gz"
+      try mv -f "$1.tmp.gz" "$TO.sql.gz"
     fi
   else
     echo "-- No previous file to compare. Removing tmp extension."
-    try mv -f "$1.tmp.gz" "$1.sql.gz"
+    try mv -f "$1.tmp.gz" "$TO.sql.gz"
   fi
 }
+
 ################
-# Begin MAIN   #
+#  Begin MAIN  #
 ################
 
 # Build skip databases array
@@ -213,7 +213,7 @@ fi
 
 echo "-- STARTING DATABASE DUMP --"
 
-# Ensure dump path exists 
+# Ensure dump path exists
 if [ ! -d "${MYSQL_DUMP_FOLDER}" ]; then
   printf "\-- Dump folder not found. Attempting to create %s\n" "${MYSQL_DUMP_FOLDER}"
   try mkdir -p "${MYSQL_DUMP_FOLDER}"
@@ -227,37 +227,18 @@ if [ ! -d "${MYSQL_DUMP_FOLDER}" ]; then
 fi
 
 # Set tmp folder
-if [ -d "/mnt/resource" ]; then
-  printf "\-- /mnt/resource folder was found. Attempting to create %s\n" "${MYSQL_TMP_FOLDER}"
-    mkdir -p "${MYSQL_TMP_FOLDER}"
-    if [ $? -ne 0 ]; then
-      printf "Error: The user launching this script, ${USER}, is unable to create \"${MYSQL_TMP_FOLDER}\""
-      MYSQL_TMP_FOLDER="${MYSQL_DUMP_FOLDER}"
-    else
-      # clean stale data
-      try rm -rf ${MYSQL_TMP_FOLDER}/*
-      ls -lh "${MYSQL_TMP_FOLDER}"
-      echo "-- Successfully created and cleaned out folder \"${MYSQL_TMP_FOLDER}\""
-    fi
-else
-  printf "\-- /mnt/resource not found. Using \"${MYSQL_DUMP_FOLDER}\""
-  MYSQL_TMP_FOLDER="${MYSQL_DUMP_FOLDER}"
+if [ -d "${MYSQL_TMP_FOLDER}" ]; then
+  printf "\-- %s folder was found. Attempting to create\n" "${MYSQL_TMP_FOLDER}"
+  mkdir -p "${MYSQL_TMP_FOLDER}"
 fi
 
 # Test database access or throw error
 mysql ${MYSQL_DEFAULTS} -e 'show databases' > /dev/null || \
   { 
-    printf "Error: cannot read database! %s\n";  \
+    printf "Error: cannot read database! %s\n"; \
     PRECHECK_DUMP="ERROR"; exit 1
   }
 
-# Set SQLend string:
-echo "SET autocommit=1; SET unique_checks=1; SET foreign_key_checks=1;" > /tmp/sqlend.sql
-if [ ! -f /tmp/sqlend.sql ]; then
-  printf "Error: The user launching this script, ${USER}, is unable to create /tmp/sqlend.sql. Does it already exist?"
-  PRECHECK_DUMP="ERROR"
-  exit 1
-fi
 ################################
 # Begin loop through databases #
 ################################
@@ -272,6 +253,10 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
       continue 2    # jump back two 'for loops'
     fi
   done
+
+  DUMP_STRUCTURE "${THIS_DATABASE}" "" "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}"
+  COMPARE_FILES "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}"
+
   # Skip specifically excluded DBs
   for EXCLUDE_THAT_DATABASE in "${EXCLUDED_DATABASES[@]}"; do
     if [ "${THIS_DATABASE}" = "${EXCLUDE_THAT_DATABASE}" ]
@@ -330,21 +315,13 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
     fi
   done
 
-  # Set SQLhead string while in loop
-  echo "USE ${THIS_DATABASE}; SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;" > /tmp/sqlhead.sql
-  if [ ! -f /tmp/sqlhead.sql ]; then
-    printf "Error: The user launching this script, ${USER}, is unable to create /tmp/sqlhead.sql. Does it already exist?"
-    exit 1
-    PRECHECK_DUMP="ERROR"
-  fi
-
   #############################
   # Begin loop through tables #
   #############################
 
-  DUMP_STRUCTURE "${THIS_DATABASE}" "" "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
-  COMPARE_FILES "${MYSQL_DUMP_FOLDER}/${THIS_DATABASE}/${HOSTNAME}.${THIS_DATABASE}"
-  
+  DUMP_STRUCTURE "${THIS_DATABASE}" "" "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}"
+  COMPARE_FILES "${MYSQL_DUMP_FOLDER}/${HOSTNAME}.${THIS_DATABASE}"
+
   # this for loop forces BASE TABLEs to be dumped first followed by VIEWs
   for BASE_OR_VIEW in 'VIEW' 'BASE TABLE'; do
     [ -z "$DEBUG" ] || echo "mysql ${MYSQL_DEFAULTS} -NBA -D ${THIS_DATABASE} -e \"SHOW FULL TABLES where TABLE_TYPE like '${BASE_OR_VIEW}'\""
@@ -407,8 +384,6 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         ###################################
         # Call functions, perform dumps   #
         ###################################
-        echo "-- `date +%T` -- BEGIN dumping structure for: \"${THIS_DATABASE}.${THIS_TABLE}\""
-        DUMP_STRUCTURE "${THIS_DATABASE}" "${THIS_TABLE}" "${TEMP_SAVEd_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for dumping structure"
           STRUCTURE_DUMP="ERROR"
@@ -447,7 +422,7 @@ for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-col
         fi
 
         echo "-- `date +%T` -- Begin compare files from previous dump"
-        COMPARE_FILES "${SAVED_TABLE}"
+        COMPARE_FILES "${TEMP_SAVEd_TABLE}" "${SAVED_TABLE}"
         if [ $? -ne 0 ]; then
           echo "-- Error returned from function for comparing files"
           COMPARE_ROUTINE="ERROR"
@@ -465,8 +440,6 @@ done
 #####################################
 # Clean up files and report errors  #
 #####################################
-# remove tmp files
-try rm -f /tmp/sqlhead.sql /tmp/sqlend.sql
 # clean stale data from temp folder
 echo "MYSQL_DUMP_FOLDER = ${MYSQL_DUMP_FOLDER}"
 echo "MYSQL_TMP_FOLDER = ${MYSQL_TMP_FOLDER}"
