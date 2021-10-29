@@ -8,12 +8,15 @@ yell() { echo "$0: $*" >&2; }
 die() { yell "$*"; exit 111; }
 try() { echo "-- $@" && "$@" || die "cannot $*"; }
 
+help=$(grep "^## " "${BASH_SOURCE[0]}" | cut -c 4-)
+version=$(grep "^#- "  "${BASH_SOURCE[0]}" | cut -c 4-)
+
 # print self and arguments, if any
 ARGS=""
 if [[ $# -gt 0 ]] ; then ARGS="with arguments '${@}'"; fi
-echo "Starting '${0}' ${ARGS}"
+echo "Starting '${0}' ($version) ${ARGS}"
 
-#- dumpdb.sh 0.92.1
+#- dumpdb.sh 0.92.2
 ## Usage: dumpdb.sh [-d directory] [-f] [-c] [-e] [-h] [-v] [-debug]
 ##
 ##       -d <dir> Set dump directory
@@ -88,9 +91,6 @@ COMPARE_ROUTINE=""
 #################################
 # Options and help functions    #
 #################################
-
-help=$(grep "^## " "${BASH_SOURCE[0]}" | cut -c 4-)
-version=$(grep "^#- "  "${BASH_SOURCE[0]}" | cut -c 4-)
 
 opt_debug() {
   DEBUG=1
