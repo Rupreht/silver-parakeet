@@ -246,7 +246,7 @@ echo "-- Dumping all DB ..."
 for THIS_DATABASE in $(mysql ${MYSQL_DEFAULTS} -e 'show databases' -s --skip-column-names); do
   [ -z "$DEBUG" ] || echo "info: THIS_DATABASE=$THIS_DATABASE"
   # Skip schema & other DBs
-  for EXCLUDE_THIS_DATABASE in information_schema mysql phpmyadmin performance_schema sys; do
+  for EXCLUDE_THIS_DATABASE in information_schema mysql phpmyadmin performance_schema sys tmp; do
     if [ "${THIS_DATABASE}" = "${EXCLUDE_THIS_DATABASE}" ]
     then
       echo "-- Skip - Matches hard-coded exclude list: \"${THIS_DATABASE}\""
